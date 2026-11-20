@@ -3,6 +3,12 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+# One batch of pushes = one image: if several pushes land in quick
+# succession, cancel the earlier in-progress build and only build the
+# latest commit.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
