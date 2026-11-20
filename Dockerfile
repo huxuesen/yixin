@@ -11,6 +11,12 @@ COPY . .
 # is unreachable from the build runner, the build still succeeds and the
 # cache populates on first use at runtime.
 RUN python3 warm_cache.py /root/yixin-web/static-cache || echo "warm_cache failed (non-fatal), cache will populate at runtime"
+# Startup entrypoint: re-warms the cache in the background after the
+# container starts (picks up hospital updates made after the image was
+# built), then execs gunicorn as PID 1.
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 ENV PORT=8080
 EXPOSE 8080
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "app:app"]
