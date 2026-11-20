@@ -103,7 +103,7 @@ $('#loginBtn').onclick=async()=>{
       body:JSON.stringify({userName:$('#userName').value,password:$('#password').value})});
     $('#password').value='';
     showMain(d);
-  }catch(e){const el=$('#loginErr');el.textContent=e.message;el.style.display=''}
+  }catch(e){const el=$('#loginErr');el.textContent=e.message;el.style.display='block'}
   b.disabled=false;
 };
 $('#password').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginBtn').click()});
