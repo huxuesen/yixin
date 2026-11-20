@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+*.log
+*.mitm
+# local test / diagnostic scripts and screenshots (not part of the app)
+h5test.js
+clicktest.js
+clicktest2.js
+clickdiag.js
+navdiag.js
+shot2.js
+*.png
