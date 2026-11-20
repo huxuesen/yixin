@@ -68,6 +68,18 @@ def _guess_type(path):
     return "application/octet-stream"
 
 
+def _atomic_write(path, data):
+    """Write via a temp file + atomic rename, so a concurrent reader (or
+    a concurrent warm_cache.py / another gunicorn worker) never sees a
+    half-written file. Without this, two writers racing on the same cache
+    file could leave a corrupt bundle that the proxy then serves on every
+    cache hit."""
+    tmp = path + ".tmp.%d" % os.getpid()
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, path)
+
+
 def _write_compressed(cache_file, data):
     """Write <file>.br (Brotli q11) and <file>.gz (gzip -9) next to a
     cached asset, when the compressed form is meaningfully smaller.
@@ -78,16 +90,14 @@ def _write_compressed(cache_file, data):
         import brotli
         br = brotli.compress(data, quality=11)
         if len(br) < len(data) * 0.9:
-            with open(cache_file + ".br", "wb") as f:
-                f.write(br)
+            _atomic_write(cache_file + ".br", br)
     except Exception:
         pass
     try:
         import gzip
         gz = gzip.compress(data, compresslevel=9)
         if len(gz) < len(data) * 0.9:
-            with open(cache_file + ".gz", "wb") as f:
-                f.write(gz)
+            _atomic_write(cache_file + ".gz", gz)
     except Exception:
         pass
 
@@ -237,8 +247,7 @@ def proxy_to_hospital(path, cookies=None):
         try:
             os.makedirs(STATIC_CACHE_DIR, exist_ok=True)
             content = r.content
-            with open(cache[0], "wb") as f:
-                f.write(content)
+            _atomic_write(cache[0], content)
             _write_compressed(cache[0], content)
             headers["Cache-Control"] = "public, max-age=31536000, immutable"
             headers["Access-Control-Allow-Origin"] = "*"
