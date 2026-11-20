@@ -51,6 +51,15 @@ def cache_file(path):
     return os.path.join(CACHE_DIR, hashlib.sha256(path.encode()).hexdigest()[:16] + ".bin")
 
 
+def atomic_write(path, data):
+    # Temp file + atomic rename: a concurrent gunicorn worker reading the
+    # cache never sees a half-written file.
+    tmp = path + ".tmp.%d" % os.getpid()
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, path)
+
+
 def compress(path, data):
     if len(data) < 1024:
         return
@@ -58,14 +67,14 @@ def compress(path, data):
         import brotli
         br = brotli.compress(data, quality=11)
         if len(br) < len(data) * 0.9:
-            open(path + ".br", "wb").write(br)
+            atomic_write(path + ".br", br)
     except Exception as e:
         print(f"  brotli failed for {path}: {e}")
     try:
         import gzip
         gz = gzip.compress(data, compresslevel=9)
         if len(gz) < len(data) * 0.9:
-            open(path + ".gz", "wb").write(gz)
+            atomic_write(path + ".gz", gz)
     except Exception as e:
         print(f"  gzip failed for {path}: {e}")
 
@@ -109,7 +118,7 @@ def main():
         if data is None:
             continue
         cf = cache_file(path)
-        open(cf, "wb").write(data)
+        atomic_write(cf, data)
         compress(cf, data)
         total += len(data)
         done += 1
